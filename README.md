@@ -1,126 +1,169 @@
 # Librosa Async API
 
-**Librosa Async API** is a FastAPI-based server for audio analysis.  
-It allows uploading audio files (MP3/WAV) and returns detailed audio features, beat detection, downbeats, onset events, and visualizations.  
+**Librosa Async API** is a FastAPI-based server for asynchronous audio analysis.  
+It allows uploading audio files (MP3/WAV) and returns detailed audio features including tempo, beats, onsets, loudness, rhythmic events, and visualizations.
+
 Optionally, if `madmom` is installed, the API can also detect downbeats for more precise rhythm analysis.
 
 ---
 
 ## Features
 
-- **Audio Metadata Extraction**: Extracts song title, artist, and genre using `mutagen`.
-- **Beat & Onset Detection**: Uses `librosa` for tempo, beat times, onset events, and RMS (loudness) analysis.
-- **Downbeat Detection (optional)**: Uses `madmom` to detect downbeats for more precise rhythm mapping.
-- **Harmonic/Percussive Separation**: Separates harmonic and percussive components of audio and visualizes them.
-- **Plot Generation**: Produces base64-encoded PNG plots of:
-  - Onset strength and beats
+- Audio metadata extraction (title, artist, genre) using `mutagen`
+- Beat and onset detection using `librosa`
+- Tempo estimation and RMS (loudness) analysis
+- Optional downbeat detection using `madmom`
+- Harmonic / percussive source separation
+- Base64-encoded PNG plots generation:
+  - Onset strength with beats
   - PLP (Percussive-Like Peaks) with beats
-  - Harmonic vs Percussive components with downbeats
-- **JSON Response**: Returns tempo, duration, beat times, onset times, RMS, downbeats, events, and metadata.
+  - Harmonic vs percussive components with downbeats
+- JSON-based API responses suitable for automation and integrations
+
+---
+
+## Requirements
+
+- Python 3.11 or higher
+- Linux server (Ubuntu / Debian recommended)
+- `ffmpeg` (required for MP3 decoding)
+- Optional: `madmom` (downbeat detection)
 
 ---
 
 ## Installation
 
-### Prerequisites
-
-- Python 3.11+
-- Linux server (Ubuntu/Debian recommended)
-- `ffmpeg` (required by `librosa` to process MP3 files)
-- Optional: `madmom` for downbeat detection
+### System Dependencies
 
 ```bash
 sudo apt update
 sudo apt install python3 python3-venv python3-pip ffmpeg -y
+```
 
-## Clone and Setup
+### Clone and Setup
 
+```bash
 git clone <your-repo-url>
 cd <your-repo-folder>
+
 python3 -m venv venv
 source venv/bin/activate
+
 pip install --upgrade pip
 pip install -r requirements.txt
+```
 
-**Optional:** Install madmom for downbeat detection:
+Optional downbeat detection:
+
+```bash
 pip install madmom
+```
 
+---
 
-##Configuration
+## Configuration
 
-- MAX_FILE_SIZE: Maximum allowed audio file size (default: 20 MB)
-- DEFAULT_SR: Sampling rate for processing audio (default: 22050 Hz)
-- You can adjust these values in main.py to optimize memory and performance for large audio files.
+The following values can be adjusted in `main.py`:
 
-##Running the Server
+- `MAX_FILE_SIZE` — Maximum allowed upload size (default: 20 MB)
+- `DEFAULT_SR` — Audio sampling rate (default: 22050 Hz)
 
-Run the FastAPI server:
+Adjust these parameters to optimize memory usage and performance for large audio files.
 
+---
+
+## Running the Server
+
+Start the FastAPI server using Uvicorn:
+
+```bash
 uvicorn main:app --host 0.0.0.0 --port 8000
+```
 
-- The API will be available at http://<server-ip>:8000.
-- Interactive API documentation: http://<server-ip>:8000/docs.
+- API endpoint: `http://<server-ip>:8000`
+- Interactive API documentation: `http://<server-ip>:8000/docs`
 
-##Usage
+---
 
-Endpoint: /analyze
-Method: POST
-Form Data:
+## API Usage
 
-audio: Audio file (MP3 or WAV)
+### Analyze Audio
 
-Example with cURL:
+**Endpoint:** `/analyze`  
+**Method:** `POST`  
+**Content-Type:** `multipart/form-data`
 
+#### Parameters
+
+- `audio` — MP3 or WAV file
+
+#### cURL Example
+
+```bash
 curl -X POST "http://localhost:8000/analyze" \
   -F "audio=@/path/to/audio.mp3"
+```
 
+---
 
-Example JSON Response:
+## Example JSON Response
 
+```json
 {
   "tempo": 120.5,
-  "beat_times": [0.0, 0.5, 1.0, ...],
-  "onset_times": [0.1, 0.4, 0.9, ...],
-  "rms": [0.02, 0.03, ...],
+  "beat_times": [0.0, 0.5, 1.0],
+  "onset_times": [0.1, 0.4, 0.9],
+  "rms": [0.02, 0.03],
   "duration": 180.0,
-  "downbeats": [0.0, 2.0, ...],
+  "downbeats": [0.0, 2.0],
   "image_base64": "iVBORw0KGgoAAAANSUhEUgAA...",
   "events": [
-    {"timeshow_id":160,"event_id":"M1","event_label":"measure","time_stamp":0.0,"event_color":"#F3F6EC","Value":1},
-    ...
+    {
+      "timeshow_id": 160,
+      "event_id": "M1",
+      "event_label": "measure",
+      "time_stamp": 0.0,
+      "event_color": "#F3F6EC",
+      "Value": 1
+    }
   ],
   "song_label": "Song Title",
   "artist": "Artist Name",
   "genre": "Genre"
 }
+```
 
-##Deployment on Linux
-###1. Use a Virtual Environment
+---
 
-Ensure your project runs in a Python virtual environment to avoid dependency conflicts.
+## Deployment on Linux
 
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+### Run with Uvicorn
 
-###2. Run with Uvicorn
+Development mode:
 
-For development:
-
+```bash
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
 
+Production mode:
 
-####For production:
-
+```bash
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+```
 
+The `--workers 4` option allows handling multiple concurrent requests.
 
---workers 4 allows handling multiple requests concurrently.
+---
 
-###3. Use Systemd to Auto-Start
+## Systemd Service (Auto-Start)
 
-Create a systemd service file /etc/systemd/system/librosa-api.service:
+Create a systemd service file:
 
+```bash
+sudo nano /etc/systemd/system/librosa-api.service
+```
+
+```ini
 [Unit]
 Description=Librosa Async API
 After=network.target
@@ -133,11 +176,21 @@ Restart=always
 
 [Install]
 WantedBy=multi-user.target
+```
 
+Enable and start the service:
 
-###Enable and start the service:
-
+```bash
 sudo systemctl daemon-reload
 sudo systemctl enable librosa-api
 sudo systemctl start librosa-api
 sudo systemctl status librosa-api
+```
+
+---
+
+## Notes
+
+- MP3 support requires `ffmpeg`
+- Downbeat detection is enabled only if `madmom` is installed
+- Designed for backend automation, music analysis pipelines, and rhythm-based applications
